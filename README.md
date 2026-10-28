@@ -1,38 +1,56 @@
 # MyTechSearch
 
-A small full-stack job application tracker with a React/TypeScript frontend, Java Spring Boot REST API, and persistent SQLite storage.
+A responsive job application tracking dashboard powered by **React + TypeScript**, **Java Spring Boot**, and **SQLite**.
 
-## Tech stack
-- Frontend: React 18, TypeScript, Vite, CSS
-- Backend: Java 21, Spring Boot 3.3, Spring Web, Spring JDBC, Bean Validation
-- Database: SQLite (local file, created automatically)
+## Features
+- Dashboard with application, interview, offer and rejection counts
+- Create, edit and delete job applications
+- Change application status directly from the table
+- Search by company, position or notes; filter by status
+- Local SQLite persistence, validation and API error messages
+- Responsive layout for desktop and mobile
 
-## Start backend
-Install Java 21 and Maven, then:
+## Requirements
+- Java 21, Maven 3.9+
+- Node.js 20+ and npm
+
+## Run locally
+Start the backend in one terminal:
 ```bash
 cd backend
 mvn spring-boot:run
 ```
-The API runs at http://localhost:8080/api/applications.
-
-## Start frontend
-Install Node.js 20+ and npm, then:
+Start the frontend in another:
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Open http://localhost:5173.
+Open http://localhost:5173. Backend API: http://localhost:8080/api/applications.
+
+SQLite database is created at `backend/applications.db` automatically. It is excluded from Git.
 
 ## API
-- GET /api/applications
-- GET /api/applications/{id}
-- POST /api/applications
-- PUT /api/applications/{id}
-- DELETE /api/applications/{id}
-- GET /api/applications/stats
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/applications | List |
+| GET | /api/applications/{id} | Detail |
+| POST | /api/applications | Create |
+| PUT | /api/applications/{id} | Update |
+| DELETE | /api/applications/{id} | Delete |
+| GET | /api/applications/stats | Counts |
 
-Example POST JSON: `{"company":"Example Co","position":"Software Engineer","status":"Applied","appliedDate":"2026-10-28","notes":""}`
+Example request:
+```json
+{"company":"Example Co","position":"Software Engineer","status":"Applied","appliedDate":"2026-10-28","notes":"Recruiter call next week"}
+```
 
-## Scope
-Single-user MVP: create, list, search and delete applications, basic status counts. Edit UI, authentication, filtering by status and tests are future improvements. Do not expose the local API on the public internet without authentication.
+Statuses: Applied, Interview, Offer, Rejected.
+
+## Important
+This is a single-user local development project, without authentication. **Do not deploy the backend publicly** without adding authentication, authorization and production configuration. No third-party job board integration is included.
+
+## Next improvements
+- JUnit API integration tests
+- Export applications as CSV
+- Authentication if multi-user hosting is required
