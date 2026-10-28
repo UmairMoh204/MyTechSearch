@@ -1,41 +1,24 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import { createRoot } from 'react-dom/client';
-import './style.css';
+import { BrowserRouter } from 'react-router-dom';
+import { App } from './App';
+import { ApplicationsProvider } from './context/ApplicationsContext';
+import { SettingsProvider } from './context/SettingsContext';
+import './index.css';
 
-type Status = 'Applied' | 'Interview' | 'Offer' | 'Rejected';
-type Application = { id:number; company:string; position:string; status:Status; appliedDate:string; notes:string };
-type FormData = Omit<Application,'id'>;
-const API = 'http://localhost:8080/api/applications';
-const statuses:Status[] = ['Applied','Interview','Offer','Rejected'];
-const emptyForm = ():FormData => ({company:'',position:'',status:'Applied',appliedDate:new Date().toLocaleDateString('en-CA'),notes:''});
-const formatDate = (date:string) => {const [y,m,d]=date.split('-');return y&&m&&d?new Date(Number(y),Number(m)-1,Number(d)).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):date};
-async function request<T>(url:string,options?:RequestInit):Promise<T>{const response=await fetch(url,options);if(!response.ok){let detail='';try{const body=await response.json();detail=body.message||body.error||''}catch{}throw new Error(detail||'Request failed ('+response.status+')')}return response.status===204?undefined as T:response.json()}
-
-function App(){
- const [items,setItems]=useState<Application[]>([]);
- const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false);
- const [error,setError]=useState(''),[notice,setNotice]=useState('');
- const [search,setSearch]=useState(''),[statusFilter,setStatusFilter]=useState('All');
- const [form,setForm]=useState<FormData>(emptyForm);
- const [editing,setEditing]=useState<number|null>(null);
- const [showForm,setShowForm]=useState(false);
- const load=useCallback(async()=>{try{setItems(await request<Application[]>(API));setError('')}catch(e){setError(e instanceof Error?e.message:'Could not connect to the API')}finally{setLoading(false)}},[]);
- useEffect(()=>{void load()},[load]);
- const filtered=useMemo(()=>items.filter(a=>(statusFilter==='All'||a.status===statusFilter)&&(a.company+' '+a.position+' '+a.notes).toLowerCase().includes(search.toLowerCase())),[items,search,statusFilter]);
- const counts=useMemo(()=>({total:items.length,interviews:items.filter(a=>a.status==='Interview').length,offers:items.filter(a=>a.status==='Offer').length,rejected:items.filter(a=>a.status==='Rejected').length}),[items]);
- const openNew=()=>{setEditing(null);setForm(emptyForm());setShowForm(true);setError('')};
- const openEdit=(a:Application)=>{setEditing(a.id);setForm({company:a.company,position:a.position,status:a.status,appliedDate:a.appliedDate,notes:a.notes||''});setShowForm(true);setError('');window.scrollTo({top:0,behavior:'smooth'})};
- const save=async(e:React.FormEvent)=>{e.preventDefault();setSaving(true);setError('');try{await request(API+(editing===null?'':'/'+editing),{method:editing===null?'POST':'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)});setNotice(editing===null?'Application added successfully.':'Application updated successfully.');setShowForm(false);setEditing(null);setForm(emptyForm());await load()}catch(e){setError(e instanceof Error?e.message:'Could not save application')}finally{setSaving(false)}};
- const remove=async(a:Application)=>{if(!window.confirm('Delete the application for '+a.company+'?'))return;setError('');try{await request<void>(API+'/'+a.id,{method:'DELETE'});setNotice('Application deleted.');await load()}catch(e){setError(e instanceof Error?e.message:'Could not delete application')}};
- const changeStatus=async(a:Application,status:Status)=>{setError('');try{await request(API+'/'+a.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({company:a.company,position:a.position,status,appliedDate:a.appliedDate,notes:a.notes})});setNotice('Status updated.');await load()}catch(e){setError(e instanceof Error?e.message:'Could not update status')}};
- return <div className="app-shell">
-  <aside className="sidebar"><div className="brand"><div className="brand-mark">M<span>✦</span></div><div><strong>MyTechSearch</strong><small>CAREER WORKSPACE</small></div></div><div className="nav-label">WORKSPACE</div><div className="nav-link active"><span>▦</span> Overview</div><div className="nav-link"><span>▤</span> Applications <em>{counts.total}</em></div><div className="sidebar-bottom"><div className="avatar">M</div><div><strong>Personal workspace</strong><small>Local & private</small></div></div></aside>
-  <main className="main"><div className="topbar"><span>Workspace <span className="slash">/</span> Overview</span><span className="local-tag"><span className="dot"/> Local workspace</span></div>
-  <div className="content"><div className="hero"><div><div className="eyebrow">YOUR CAREER, ORGANIZED</div><h1>Application dashboard</h1><p>Keep every opportunity in sight, from first application to final offer.</p></div><button className="primary add" onClick={openNew}><span>＋</span> Add application</button></div>
-  {notice&&<div className="notice" role="status">{notice}<button onClick={()=>setNotice('')} aria-label="Dismiss notification">×</button></div>}
-  {error&&<div className="error" role="alert">{error}<button onClick={()=>setError('')} aria-label="Dismiss error">×</button></div>}
-  <div className="metrics"><div className="metric"><div className="metric-top"><span>Total applications</span><span className="metric-icon blue">▤</span></div><strong>{counts.total}</strong><small>Opportunities tracked</small></div><div className="metric"><div className="metric-top"><span>In interviews</span><span className="metric-icon purple">◷</span></div><strong>{counts.interviews}</strong><small>Active conversations</small></div><div className="metric"><div className="metric-top"><span>Offers received</span><span className="metric-icon green">✧</span></div><strong>{counts.offers}</strong><small>Positive outcomes</small></div><div className="metric"><div className="metric-top"><span>Not selected</span><span className="metric-icon orange">○</span></div><strong>{counts.rejected}</strong><small>Closed opportunities</small></div></div>
-  {showForm&&<section className="panel form-panel"><div className="panel-heading"><div><h2>{editing===null?'New application':'Edit application'}</h2><p>Keep the details of your opportunity up to date.</p></div><button className="icon-button" onClick={()=>setShowForm(false)} aria-label="Close form">×</button></div><form onSubmit={save}><div className="form-grid"><label>Company<input required maxLength={120} value={form.company} placeholder="e.g. Microsoft" onChange={e=>setForm({...form,company:e.target.value})}/></label><label>Position<input required maxLength={160} value={form.position} placeholder="e.g. Software Engineer" onChange={e=>setForm({...form,position:e.target.value})}/></label><label>Status<select value={form.status} onChange={e=>setForm({...form,status:e.target.value as Status})}>{statuses.map(s=><option key={s}>{s}</option>)}</select></label><label>Applied date<input type="date" required value={form.appliedDate} onChange={e=>setForm({...form,appliedDate:e.target.value})}/></label><label className="wide">Notes<textarea rows={3} maxLength={2000} value={form.notes} placeholder="Recruiter, next steps, interview notes..." onChange={e=>setForm({...form,notes:e.target.value})}/></label></div><div className="form-actions"><button type="button" className="secondary" onClick={()=>setShowForm(false)}>Cancel</button><button className="primary" disabled={saving}>{saving?'Saving…':editing===null?'Save application':'Save changes'}</button></div></form></section>}
-  <section className="panel list-panel"><div className="panel-heading"><div><h2>Applications <span className="count">{filtered.length}</span></h2><p>Manage and track all your job opportunities.</p></div></div><div className="toolbar"><div className="search-wrap"><span>⌕</span><input aria-label="Search applications" placeholder="Search company, position, notes..." value={search} onChange={e=>setSearch(e.target.value)}/></div><select aria-label="Filter by status" className="filter" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option>All</option>{statuses.map(s=><option key={s}>{s}</option>)}</select></div><div className="table-scroll"><table><thead><tr><th>COMPANY / ROLE</th><th>STATUS</th><th>DATE APPLIED</th><th>NOTES</th><th className="actions-col">ACTIONS</th></tr></thead><tbody>{filtered.map(a=><tr key={a.id}><td><div className="company-cell"><div className="company-logo">{a.company.charAt(0).toUpperCase()}</div><div><strong>{a.company}</strong><small>{a.position}</small></div></div></td><td><select className={'status '+a.status.toLowerCase()} aria-label={'Status for '+a.company} value={a.status} onChange={e=>void changeStatus(a,e.target.value as Status)}>{statuses.map(s=><option key={s}>{s}</option>)}</select></td><td className="muted">{formatDate(a.appliedDate)}</td><td className="notes-cell" title={a.notes}>{a.notes||'—'}</td><td><div className="row-actions"><button onClick={()=>openEdit(a)} className="text-button">Edit</button><button onClick={()=>void remove(a)} className="text-button danger">Delete</button></div></td></tr>)}</tbody></table></div>{!loading&&filtered.length===0&&<div className="empty-state"><div className="empty-icon">▤</div><h3>{items.length===0?'Your journey starts here':'No matching applications'}</h3><p>{items.length===0?'Add your first job application to start tracking your progress.':'Try changing your search or status filter.'}</p>{items.length===0&&<button className="primary" onClick={openNew}>＋ Add your first application</button>}</div>}{loading&&<div className="empty-state">Loading applications…</div>}</section><footer>MyTechSearch · Built with React, Spring Boot & SQLite</footer></div></main></div>
+const root = document.getElementById('root');
+if (!root) {
+  throw new Error('Root element not found');
 }
-createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>);
+
+createRoot(root).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <SettingsProvider>
+        <ApplicationsProvider>
+          <App />
+        </ApplicationsProvider>
+      </SettingsProvider>
+    </BrowserRouter>
+  </React.StrictMode>,
+);
